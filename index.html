@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard AI Lokal</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        chatbg: '#0f172a',
+                        panelbg: '#1e293b',
+                        userbg: '#3b82f6',
+                        aibg: '#334155',
+                        textmain: '#f8fafc',
+                        textmuted: '#94a3b8'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        pre {
+            background-color: #020617;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+            border: 1px solid #1e293b;
+            color: #38bdf8;
+            font-size: 0.875rem;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        /* Animasi Loading Modern (Glowing Orb) */
+        .modern-loader {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .orb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+            animation: pulse-glow 1.2s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.6;
+                box-shadow: 0 0 5px #38bdf8;
+            }
+
+            100% {
+                transform: scale(1.2);
+                opacity: 1;
+                box-shadow: 0 0 15px #38bdf8, 0 0 30px #38bdf8;
+            }
+        }
+
+        /* Animasi Toast Notifikasi */
+        .toast-enter {
+            animation: slideIn 0.3s forwards;
+        }
+
+        .toast-exit {
+            animation: slideOut 0.3s forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+        }
+
+        /* Overlay Drag & Drop */
+        #drag-overlay {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(5px);
+            border: 3px dashed #3b82f6;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-slate-950 text-textmain h-[100dvh] flex flex-col items-center justify-center sm:p-4 sm:bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] relative">
+
+    <div id="drag-overlay"
+        class="absolute inset-0 m-4 rounded-2xl hidden flex-col items-center justify-center transition-all z-50">
+        <i class="ph ph-upload-simple text-6xl text-blue-500 mb-4 animate-bounce pointer-events-none"></i>
+        <h2 class="text-2xl font-bold text-blue-400 pointer-events-none">Lepaskan File di Sini</h2>
+        <p class="text-slate-400 mt-2 pointer-events-none">Mendukung Gambar, Teks, dan Kode</p>
+    </div>
+
+    <div id="toast-container" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2"></div>
+
+    <div id="debug-console"
+        class="hidden absolute sm:top-5 sm:right-5 top-16 right-2 w-72 bg-black/90 border border-slate-700 rounded-lg shadow-2xl z-40 flex-col overflow-hidden">
+        <div class="bg-slate-900 p-2 border-b border-slate-700 flex justify-between items-center cursor-move">
+            <span class="text-xs font-bold text-slate-300 flex items-center gap-1"><i
+                    class="ph ph-terminal text-green-400"></i> API Console</span>
+            <button onclick="toggleConsole()" class="text-slate-500 hover:text-red-400"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="console-logs"
+            class="p-3 max-h-60 overflow-y-auto text-[10px] font-mono text-green-400 flex flex-col gap-1">
+            <div>> System initialized...</div>
+        </div>
+    </div>
+
+    <div
+        class="w-full h-full sm:max-w-4xl sm:h-[90vh] flex flex-col bg-chatbg sm:rounded-2xl sm:shadow-2xl sm:border border-slate-800 overflow-hidden relative">
+
+        <header
+            class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 p-4 flex items-center justify-between shrink-0 z-10">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 relative">
+                    <i class="ph ph-cpu text-2xl"></i>
+                    <span id="vision-indicator"
+                        class="hidden absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-slate-900"></span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <h1 class="font-semibold text-lg leading-none">AI Agent</h1>
+                    <select id="model-selector" onchange="handleModelChange()"
+                        class="bg-slate-800 text-xs text-blue-300 border border-slate-700 rounded px-1 py-0.5 outline-none cursor-pointer hover:bg-slate-700 transition">
+                        <option value="llama3.2">Llama 3.2 (Teks & Kode)</option>
+                        <option value="llama3.2-vision">Llama 3.2 Vision (Multimodal)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleConsole()"
+                    class="text-textmuted hover:text-green-400 transition-colors p-2 rounded-full hover:bg-slate-800"
+                    title="Buka Console">
+                    <i class="ph ph-terminal-window text-xl"></i>
+                </button>
+                <button onclick="clearChat()"
+                    class="text-textmuted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-slate-800"
+                    title="Bersihkan Obrolan">
+                    <i class="ph ph-trash text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <main id="chat-box" class="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-6 scroll-smooth">
+            <div class="flex w-full justify-start">
+                <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
+                    <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
+                        <i class="ph ph-robot text-blue-400"></i>
+                    </div>
+                    <div id="welcome-message"
+                        class="bg-aibg text-textmain p-3 sm:p-4 rounded-2xl rounded-tl-sm shadow-sm leading-relaxed transition-all">
+                        Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Standar</b>. Silakan tarik (drag &
+                        drop) file teks/kode ke sini atau ketik sesuatu.
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="bg-slate-900/90 backdrop-blur-md border-t border-slate-800 p-3 sm:p-4 shrink-0 z-20">
+            <div class="max-w-4xl mx-auto flex flex-col gap-2">
+                <div id="file-preview"
+                    class="hidden flex items-center gap-2 bg-slate-800 text-sm text-blue-300 w-fit px-3 py-1.5 rounded-full border border-slate-700">
+                    <i class="ph ph-file-text"></i>
+                    <span id="file-name" class="max-w-[200px] truncate"></span>
+                    <button onclick="resetAttachment()" class="ml-2 text-slate-400 hover:text-red-400"><i
+                            class="ph ph-x-circle text-lg"></i></button>
+                </div>
+
+                <div
+                    class="flex items-end gap-2 bg-panelbg rounded-2xl sm:rounded-full p-1.5 border border-slate-700 focus-within:border-blue-500/50 transition-colors relative">
+                    <input type="file" id="fileInput" class="hidden"
+                        accept=".png, .jpg, .jpeg, .txt, .csv, .md, .json, .html, .js, .ino">
+                    <button onclick="document.getElementById('fileInput').click()"
+                        class="p-3 text-textmuted hover:text-blue-400 hover:bg-slate-700 rounded-full transition-all shrink-0 mb-0.5"
+                        title="Lampirkan File">
+                        <i class="ph ph-paperclip text-xl"></i>
+                    </button>
+                    <textarea id="userInput" rows="1" placeholder="Tanya sesuatu kepada AI..."
+                        class="flex-1 bg-transparent border-none outline-none text-textmain resize-none p-3 max-h-32 min-h-[44px]"
+                        oninput="this.style.height = ''; this.style.height = Math.min(this.scrollHeight, 128) + 'px'"
+                        onkeydown="handleEnter(event)"></textarea>
+                    <button onclick="kirimPesan()"
+                        class="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all shrink-0 shadow-lg shadow-blue-500/30 mb-0.5">
+                        <i class="ph ph-paper-plane-right text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        let attachedImageBase64 = null;
+        let attachedDocumentText = "";
+        let attachedFileName = "";
+
+        // Ekstensi file yang diizinkan
+        const ALLOWED_EXTENSIONS = ['txt', 'csv', 'md', 'json', 'html', 'js', 'ino', 'png', 'jpg', 'jpeg'];
+
+        /* --- SISTEM CONSOLE & TOAST --- */
+        function toggleConsole() {
+            const consoleEl = document.getElementById('debug-console');
+            consoleEl.classList.toggle('hidden');
+            consoleEl.classList.toggle('flex');
+        }
+
+        function logConsole(message, isError = false) {
+            const logs = document.getElementById('console-logs');
+            const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            const color = isError ? 'text-red-400' : 'text-green-400';
+            logs.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[Dashboard AI] ${message}`);
+        }
+
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500/90' : 'bg-green-500/90';
+            const icon = type === 'error' ? 'ph-warning-circle' : 'ph-check-circle';
+
+            toast.className = `flex items-center gap-2 text-white px-4 py-2 rounded-lg shadow-lg text-sm backdrop-blur-sm toast-enter ${bgColor}`;
+            toast.innerHTML = `<i class="ph ${icon} text-lg"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+            logConsole(`Toast ditampilkan: ${message}`, type === 'error');
+
+            setTimeout(() => {
+                toast.classList.replace('toast-enter', 'toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* --- SISTEM GANTI MODEL AI --- */
+        function handleModelChange() {
+            const model = document.getElementById('model-selector').value;
+            const indicator = document.getElementById('vision-indicator');
+            const welcomeMsg = document.getElementById('welcome-message'); // Menangkap elemen pesan pembuka
+
+            logConsole(`Model diubah ke: ${model}`);
+
+            if (model === 'llama3.2-vision') {
+                indicator.classList.remove('hidden');
+                showToast('Mode Vision Aktif. Fitur gambar dihidupkan.', 'success');
+
+                // Ubah teks pesan pembuka menjadi Vision
+                if (welcomeMsg) {
+                    welcomeMsg.innerHTML = "Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Vision (Multimodal)</b>. Silakan tarik (drag & drop) gambar, dokumen, atau ketik sesuatu.";
+                }
+            } else {
+                indicator.classList.add('hidden');
+
+                // Ubah teks pesan pembuka kembali ke Standar
+                if (welcomeMsg) {
+                    welcomeMsg.innerHTML = "Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Standar</b>. Silakan tarik (drag & drop) file teks/kode ke sini atau ketik sesuatu.";
+                }
+
+                // Jika sedang melampirkan gambar, hapus karena model ini tidak mendukungnya
+                if (attachedImageBase64) {
+                    resetAttachment();
+                    showToast('Lampiran gambar dihapus karena model Standar tidak mendukung gambar.', 'error');
+                }
+            }
+        }
+
+        /* --- SISTEM DRAG & DROP FILE --- */
+        const dropZone = document.body;
+        const dragOverlay = document.getElementById('drag-overlay');
+
+        // Mencegah sifat bawaan browser yang memblokir drop atau membuka tab baru
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        // Tampilkan overlay saat file mulai diseret masuk ke area layar
+        dropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragOverlay.classList.remove('hidden');
+            dragOverlay.classList.add('flex');
+        });
+
+        // Sembunyikan overlay saat kursor diseret keluar dari area layar
+        dragOverlay.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragOverlay.classList.add('hidden');
+            dragOverlay.classList.remove('flex');
+        });
+
+        // Tangkap file yang dilepaskan
+        dragOverlay.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragOverlay.classList.add('hidden');
+            dragOverlay.classList.remove('flex');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Menangkap file dari tombol manual paperclip
+        document.getElementById("fileInput").addEventListener("change", (e) => {
+            if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
+        });
+
+        /* --- LOGIKA VALIDASI FILE --- */
+        function handleFileUpload(file) {
+            logConsole(`Menganalisis file: ${file.name}`);
+            const ext = file.name.split('.').pop().toLowerCase();
+            const model = document.getElementById('model-selector').value;
+
+            // Validasi 1: Ekstensi diizinkan?
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                showToast(`Format .${ext} tidak didukung. Gunakan teks, kode, atau gambar.`);
+                return;
+            }
+
+            // Validasi 2: Apakah gambar dimasukkan ke model non-vision?
+            const isImage = file.type.startsWith("image/");
+            if (isImage && model === 'llama3.2') {
+                showToast('Ubah model ke Llama 3.2 Vision terlebih dahulu untuk upload gambar!');
+                return;
+            }
+
+            // Validasi lolos, proses file
+            attachedFileName = file.name;
+            const filePreview = document.getElementById("file-preview");
+            filePreview.style.display = "flex";
+            document.getElementById("file-name").innerText = file.name;
+            filePreview.querySelector('i').className = isImage ? 'ph ph-image' : 'ph ph-file-text';
+
+            const reader = new FileReader();
+            if (isImage) {
+                reader.onload = (e) => {
+                    attachedImageBase64 = e.target.result.split(",")[1];
+                    attachedDocumentText = "";
+                    logConsole(`Gambar berhasil di-decode ke Base64.`);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                reader.onload = (e) => {
+                    attachedDocumentText = e.target.result;
+                    attachedImageBase64 = null;
+                    logConsole(`Teks dokumen berhasil dibaca (${attachedDocumentText.length} karakter).`);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        /* --- FORMATTING & PENGIRIMAN --- */
+        function formatMarkdown(text) {
+            text = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
+        async function kirimPesan() {
+            const inputField = document.getElementById("userInput");
+            const chatBox = document.getElementById("chat-box");
+            let pesan = inputField.value.trim();
+
+            if (!pesan && !attachedImageBase64 && !attachedDocumentText) return;
+
+            // 1. Tampilkan UI User
+            let userHtml = pesan.replace(/\n/g, '<br>');
+            if (attachedImageBase64) {
+                userHtml += `<div class="mt-3"><img src="data:image/png;base64,${attachedImageBase64}" alt="Uploaded" class="max-w-[200px] w-full rounded-lg border border-blue-400/30 object-cover"></div>`;
+            } else if (attachedDocumentText) {
+                userHtml += `<div class="mt-3 flex items-center gap-2 bg-blue-700/50 p-2 rounded text-sm"><i class="ph ph-file-text"></i> ${attachedFileName}</div>`;
+            }
+
+            chatBox.innerHTML += `
+                <div class="flex w-full justify-end">
+                    <div class="flex gap-3 max-w-[90%] sm:max-w-[80%] flex-row-reverse">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 mt-1 shadow-md"><i class="ph ph-user text-white"></i></div>
+                        <div class="bg-userbg text-white p-3 sm:p-4 rounded-2xl rounded-tr-sm shadow-md leading-relaxed break-words">${userHtml}</div>
+                    </div>
+                </div>
+            `;
+            inputField.value = ""; inputField.style.height = '';
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+            // 2. Siapkan Payload berdasarkan Model yang dipilih
+            const selectedModel = document.getElementById('model-selector').value;
+            let finalPrompt = pesan;
+            if (attachedDocumentText) {
+                finalPrompt = `Berikut isi file '${attachedFileName}':\n\n${attachedDocumentText}\n\nTugas: ${pesan}`;
+            }
+
+            let requestBody = { model: selectedModel, prompt: finalPrompt, stream: false };
+            if (attachedImageBase64 && selectedModel === 'llama3.2-vision') {
+                requestBody.images = [attachedImageBase64];
+            }
+
+            logConsole(`Mengirim POST request ke ${selectedModel}...`);
+            resetAttachment();
+
+            // 3. Animasi Loading Modern
+            const loadingId = "loading-" + Date.now();
+            chatBox.innerHTML += `
+                <div class="flex w-full justify-start" id="wrapper-${loadingId}">
+                    <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
+                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
+                            <i class="ph ph-robot text-blue-400"></i>
+                        </div>
+                        <div class="bg-aibg text-textmain px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm" id="${loadingId}">
+                            <div class="modern-loader">
+                                <div class="orb"></div>
+                                <span class="text-sm font-semibold text-blue-300 ml-2 tracking-wide">Menganalisis...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+            // 4. Proses API
+            const startTime = performance.now();
+            try {
+                const response = await fetch("http://localhost:11434/api/generate", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody),
+                });
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+                const data = await response.json();
+                const endTime = performance.now();
+                logConsole(`Berhasil! Waktu respon: ${((endTime - startTime) / 1000).toFixed(2)} detik.`);
+
+                document.getElementById(loadingId).innerHTML = formatMarkdown(data.response);
+                chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+            } catch (error) {
+                logConsole(`Gagal: ${error.message}`, true);
+                document.getElementById(loadingId).innerHTML = `
+                    <div class="flex items-center gap-2 text-red-400">
+                        <i class="ph ph-warning-circle text-xl"></i>
+                        <span>Gagal menghubungi Ollama. Cek console di pojok kanan atas untuk detail.</span>
+                    </div>
+                `;
+            }
+        }
+
+        function handleEnter(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault(); kirimPesan();
+            }
+        }
+
+        function resetAttachment() {
+            attachedImageBase64 = null; attachedDocumentText = ""; attachedFileName = "";
+            document.getElementById("fileInput").value = "";
+            document.getElementById("file-preview").style.display = "none";
+        }
+
+        function clearChat() {
+            if (confirm("Hapus semua riwayat obrolan?")) {
+                document.getElementById("chat-box").innerHTML = `
+                    <div class="flex w-full justify-start">
+                        <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
+                            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1"><i class="ph ph-robot text-blue-400"></i></div>
+                            <div class="bg-aibg text-textmain p-3 sm:p-4 rounded-2xl rounded-tl-sm shadow-sm leading-relaxed">Obrolan bersih. Ada yang lain?</div>
+                        </div>
+                    </div>
+                `;
+                logConsole("Chat dibersihkan.");
+            }
+        }
+    </script>
+</body>
+
+</html>
