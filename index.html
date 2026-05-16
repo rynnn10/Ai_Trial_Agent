@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dashboard AI Lokal</title>
+    <title>Dashboard AI Lokal & Cloud</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -14,12 +14,8 @@
             theme: {
                 extend: {
                     colors: {
-                        chatbg: '#0f172a',
-                        panelbg: '#1e293b',
-                        userbg: '#3b82f6',
-                        aibg: '#334155',
-                        textmain: '#f8fafc',
-                        textmuted: '#94a3b8'
+                        chatbg: '#0f172a', panelbg: '#1e293b', userbg: '#3b82f6',
+                        aibg: '#334155', textmain: '#f8fafc', textmuted: '#94a3b8'
                     }
                 }
             }
@@ -60,7 +56,6 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
 
-        /* Animasi Loading Modern (Glowing Orb) */
         .modern-loader {
             display: flex;
             align-items: center;
@@ -90,7 +85,6 @@
             }
         }
 
-        /* Animasi Toast Notifikasi */
         .toast-enter {
             animation: slideIn 0.3s forwards;
         }
@@ -123,7 +117,6 @@
             }
         }
 
-        /* Overlay Drag & Drop */
         #drag-overlay {
             background: rgba(15, 23, 42, 0.9);
             backdrop-filter: blur(5px);
@@ -174,35 +167,31 @@
                     <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
                         <select id="model-selector" onchange="handleModelChange()"
                             class="bg-slate-800 text-xs text-blue-300 border border-slate-700 rounded px-1 py-0.5 outline-none cursor-pointer hover:bg-slate-700 transition">
-                            <option value="llama3.2">Llama 3.2 (Teks & Kode)</option>
-                            <option value="llama3.2-vision">Llama 3.2 Vision (Multimodal)</option>
+                            <option value="llama3.2">Llama 3.2 (Ollama Lokal)</option>
+                            <option value="llama3.2-vision">Llama 3.2 Vision (Ollama Lokal)</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Google API)</option>
                         </select>
-                        <input type="text" id="api-url" value="http://localhost:11434"
-                            class="bg-slate-800 text-xs text-green-400 border border-slate-700 rounded px-1 py-0.5 outline-none w-48"
-                            title="Ollama API URL">
+
+                        <input type="hidden" id="api-url" value="http://192.168.1.16:11434">
+                        <input type="hidden" id="api-key" value="AIzaSyBjHfz9qvJupKJkMOgyuoEYswecz2hm_nA">
                     </div>
                 </div>
             </div>
             <div class="flex gap-2">
                 <button onclick="toggleConsole()"
                     class="text-textmuted hover:text-green-400 transition-colors p-2 rounded-full hover:bg-slate-800"
-                    title="Buka Console">
-                    <i class="ph ph-terminal-window text-xl"></i>
-                </button>
+                    title="Buka Console"><i class="ph ph-terminal-window text-xl"></i></button>
                 <button onclick="clearChat()"
                     class="text-textmuted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-slate-800"
-                    title="Bersihkan Obrolan">
-                    <i class="ph ph-trash text-xl"></i>
-                </button>
+                    title="Bersihkan Obrolan"><i class="ph ph-trash text-xl"></i></button>
             </div>
         </header>
 
         <main id="chat-box" class="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-6 scroll-smooth">
             <div class="flex w-full justify-start">
                 <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
-                    <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
-                        <i class="ph ph-robot text-blue-400"></i>
-                    </div>
+                    <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1"><i
+                            class="ph ph-robot text-blue-400"></i></div>
                     <div id="welcome-message"
                         class="bg-aibg text-textmain p-3 sm:p-4 rounded-2xl rounded-tl-sm shadow-sm leading-relaxed transition-all">
                         Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Standar</b>. Silakan tarik (drag &
@@ -248,160 +237,83 @@
         let attachedImageBase64 = null;
         let attachedDocumentText = "";
         let attachedFileName = "";
+        let attachedMimeType = ""; // TAMBAHAN: Menyimpan tipe file untuk Gemini
 
-        // Ekstensi file yang diizinkan
         const ALLOWED_EXTENSIONS = ['txt', 'csv', 'md', 'json', 'html', 'js', 'ino', 'png', 'jpg', 'jpeg'];
 
-        /* --- SISTEM CONSOLE & TOAST --- */
-        function toggleConsole() {
-            const consoleEl = document.getElementById('debug-console');
-            consoleEl.classList.toggle('hidden');
-            consoleEl.classList.toggle('flex');
-        }
-
-        function logConsole(message, isError = false) {
+        function toggleConsole() { const c = document.getElementById('debug-console'); c.classList.toggle('hidden'); c.classList.toggle('flex'); }
+        function logConsole(msg, err = false) {
             const logs = document.getElementById('console-logs');
-            const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
-            const color = isError ? 'text-red-400' : 'text-green-400';
-            logs.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
-            logs.scrollTop = logs.scrollHeight;
-            console.log(`[Dashboard AI] ${message}`);
+            logs.innerHTML += `<div class="${err ? 'text-red-400' : 'text-green-400'}">[${new Date().toLocaleTimeString('id-ID', { hour12: false })}] ${msg}</div>`;
+            logs.scrollTop = logs.scrollHeight; console.log(`[Dashboard] ${msg}`);
         }
-
-        function showToast(message, type = 'error') {
+        function showToast(msg, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-red-500/90' : 'bg-green-500/90';
-            const icon = type === 'error' ? 'ph-warning-circle' : 'ph-check-circle';
-
-            toast.className = `flex items-center gap-2 text-white px-4 py-2 rounded-lg shadow-lg text-sm backdrop-blur-sm toast-enter ${bgColor}`;
-            toast.innerHTML = `<i class="ph ${icon} text-lg"></i><span>${message}</span>`;
-
-            container.appendChild(toast);
-            logConsole(`Toast ditampilkan: ${message}`, type === 'error');
-
-            setTimeout(() => {
-                toast.classList.replace('toast-enter', 'toast-exit');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            toast.className = `flex items-center gap-2 text-white px-4 py-2 rounded-lg shadow-lg text-sm backdrop-blur-sm toast-enter ${type === 'error' ? 'bg-red-500/90' : 'bg-green-500/90'}`;
+            toast.innerHTML = `<i class="ph ${type === 'error' ? 'ph-warning-circle' : 'ph-check-circle'} text-lg"></i><span>${msg}</span>`;
+            container.appendChild(toast); logConsole(`Toast: ${msg}`, type === 'error');
+            setTimeout(() => { toast.classList.replace('toast-enter', 'toast-exit'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
-        /* --- SISTEM GANTI MODEL AI --- */
+        /* --- LOGIKA PERUBAHAN TAMPILAN MODEL --- */
         function handleModelChange() {
             const model = document.getElementById('model-selector').value;
             const indicator = document.getElementById('vision-indicator');
-            const welcomeMsg = document.getElementById('welcome-message'); // Menangkap elemen pesan pembuka
+            const welcomeMsg = document.getElementById('welcome-message');
 
             logConsole(`Model diubah ke: ${model}`);
 
-            if (model === 'llama3.2-vision') {
+            if (model === 'gemini-2.5-flash') {
                 indicator.classList.remove('hidden');
-                showToast('Mode Vision Aktif. Fitur gambar dihidupkan.', 'success');
-
-                // Ubah teks pesan pembuka menjadi Vision
-                if (welcomeMsg) {
-                    welcomeMsg.innerHTML = "Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Vision (Multimodal)</b>. Silakan tarik (drag & drop) gambar, dokumen, atau ketik sesuatu.";
-                }
-            } else {
+                showToast('Mode Cloud Aktif. Menggunakan Gemini 2.5 Flash.', 'success');
+                if (welcomeMsg) welcomeMsg.innerHTML = "Sistem aktif! Anda menggunakan <b>Gemini 2.5 Flash (Cloud)</b>. Silakan tarik dokumen/gambar atau ketik sesuatu.";
+            }
+            else if (model === 'llama3.2-vision') {
+                indicator.classList.remove('hidden');
+                showToast('Mode Vision Lokal Aktif. Fitur gambar dihidupkan.', 'success');
+                if (welcomeMsg) welcomeMsg.innerHTML = "Sistem aktif! Anda menggunakan model <b>Llama 3.2 Vision</b>. Silakan tarik gambar atau ketik sesuatu.";
+            }
+            else {
                 indicator.classList.add('hidden');
-
-                // Ubah teks pesan pembuka kembali ke Standar
-                if (welcomeMsg) {
-                    welcomeMsg.innerHTML = "Sistem aktif! Anda saat ini menggunakan model <b>Llama 3.2 Standar</b>. Silakan tarik (drag & drop) file teks/kode ke sini atau ketik sesuatu.";
-                }
-
-                // Jika sedang melampirkan gambar, hapus karena model ini tidak mendukungnya
-                if (attachedImageBase64) {
-                    resetAttachment();
-                    showToast('Lampiran gambar dihapus karena model Standar tidak mendukung gambar.', 'error');
-                }
+                if (welcomeMsg) welcomeMsg.innerHTML = "Sistem aktif! Anda menggunakan model <b>Llama 3.2 Standar</b>. Hanya mendukung teks dan kode.";
+                if (attachedImageBase64) { resetAttachment(); showToast('Lampiran gambar dihapus (tidak didukung model ini).', 'error'); }
             }
         }
 
-        /* --- SISTEM DRAG & DROP FILE --- */
-        const dropZone = document.body;
-        const dragOverlay = document.getElementById('drag-overlay');
+        const dropZone = document.body; const dragOverlay = document.getElementById('drag-overlay');
+        dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); dragOverlay.classList.remove('hidden'); dragOverlay.classList.add('flex'); });
+        dragOverlay.addEventListener('dragleave', (e) => { e.preventDefault(); dragOverlay.classList.add('hidden'); dragOverlay.classList.remove('flex'); });
+        dragOverlay.addEventListener('drop', (e) => { e.preventDefault(); dragOverlay.classList.add('hidden'); dragOverlay.classList.remove('flex'); if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]); });
+        document.getElementById("fileInput").addEventListener("change", (e) => { if (e.target.files.length > 0) handleFileUpload(e.target.files[0]); });
 
-        // Mencegah sifat bawaan browser yang memblokir drop atau membuka tab baru
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-
-        // Tampilkan overlay saat file mulai diseret masuk ke area layar
-        dropZone.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragOverlay.classList.remove('hidden');
-            dragOverlay.classList.add('flex');
-        });
-
-        // Sembunyikan overlay saat kursor diseret keluar dari area layar
-        dragOverlay.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dragOverlay.classList.add('hidden');
-            dragOverlay.classList.remove('flex');
-        });
-
-        // Tangkap file yang dilepaskan
-        dragOverlay.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dragOverlay.classList.add('hidden');
-            dragOverlay.classList.remove('flex');
-
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleFileUpload(e.dataTransfer.files[0]);
-            }
-        });
-
-        // Menangkap file dari tombol manual paperclip
-        document.getElementById("fileInput").addEventListener("change", (e) => {
-            if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
-        });
-
-        /* --- LOGIKA VALIDASI FILE --- */
         function handleFileUpload(file) {
             logConsole(`Menganalisis file: ${file.name}`);
             const ext = file.name.split('.').pop().toLowerCase();
             const model = document.getElementById('model-selector').value;
 
-            // Validasi 1: Ekstensi diizinkan?
-            if (!ALLOWED_EXTENSIONS.includes(ext)) {
-                showToast(`Format .${ext} tidak didukung. Gunakan teks, kode, atau gambar.`);
-                return;
-            }
-
-            // Validasi 2: Apakah gambar dimasukkan ke model non-vision?
+            if (!ALLOWED_EXTENSIONS.includes(ext)) { showToast(`Format .${ext} tidak didukung.`); return; }
             const isImage = file.type.startsWith("image/");
-            if (isImage && model === 'llama3.2') {
-                showToast('Ubah model ke Llama 3.2 Vision terlebih dahulu untuk upload gambar!');
-                return;
-            }
+            if (isImage && model === 'llama3.2') { showToast('Ubah model ke Vision/Gemini terlebih dahulu untuk upload gambar!'); return; }
 
-            // Validasi lolos, proses file
             attachedFileName = file.name;
-            const filePreview = document.getElementById("file-preview");
-            filePreview.style.display = "flex";
+            attachedMimeType = file.type; // Simpan tipe file untuk Gemini API
+
+            document.getElementById("file-preview").style.display = "flex";
             document.getElementById("file-name").innerText = file.name;
-            filePreview.querySelector('i').className = isImage ? 'ph ph-image' : 'ph ph-file-text';
+            document.getElementById("file-preview").querySelector('i').className = isImage ? 'ph ph-image' : 'ph ph-file-text';
 
             const reader = new FileReader();
             if (isImage) {
-                reader.onload = (e) => {
-                    attachedImageBase64 = e.target.result.split(",")[1];
-                    attachedDocumentText = "";
-                    logConsole(`Gambar berhasil di-decode ke Base64.`);
-                };
+                reader.onload = (e) => { attachedImageBase64 = e.target.result.split(",")[1]; attachedDocumentText = ""; logConsole(`Gambar di-decode.`); };
                 reader.readAsDataURL(file);
             } else {
-                reader.onload = (e) => {
-                    attachedDocumentText = e.target.result;
-                    attachedImageBase64 = null;
-                    logConsole(`Teks dokumen berhasil dibaca (${attachedDocumentText.length} karakter).`);
-                };
+                reader.onload = (e) => { attachedDocumentText = e.target.result; attachedImageBase64 = null; logConsole(`Dokumen dibaca.`); };
                 reader.readAsText(file);
             }
         }
 
-        /* --- FORMATTING & PENGIRIMAN --- */
         function formatMarkdown(text) {
             text = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
             text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -410,6 +322,8 @@
             return text;
         }
 
+
+        /* --- LOGIKA PENGIRIMAN MULTI-API (OLLAMA & GEMINI) --- */
         async function kirimPesan() {
             const inputField = document.getElementById("userInput");
             const chatBox = document.getElementById("chat-box");
@@ -417,111 +331,148 @@
 
             if (!pesan && !attachedImageBase64 && !attachedDocumentText) return;
 
-            // 1. Tampilkan UI User
-            let userHtml = pesan.replace(/\n/g, '<br>');
-            if (attachedImageBase64) {
-                userHtml += `<div class="mt-3"><img src="data:image/png;base64,${attachedImageBase64}" alt="Uploaded" class="max-w-[200px] w-full rounded-lg border border-blue-400/30 object-cover"></div>`;
-            } else if (attachedDocumentText) {
-                userHtml += `<div class="mt-3 flex items-center gap-2 bg-blue-700/50 p-2 rounded text-sm"><i class="ph ph-file-text"></i> ${attachedFileName}</div>`;
-            }
+            // Ambil waktu saat ini
+            const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+            let userHtml = pesan.replace(/\n/g, '<br>');
+            if (attachedImageBase64) userHtml += `<div class="mt-3"><img src="data:image/png;base64,${attachedImageBase64}" class="max-w-[200px] w-full rounded-lg border border-blue-400/30 object-cover"></div>`;
+            else if (attachedDocumentText) userHtml += `<div class="mt-3 flex items-center gap-2 bg-blue-700/50 p-2 rounded text-sm"><i class="ph ph-file-text"></i> ${attachedFileName}</div>`;
+
+            // Simpan teks mentah ke atribut agar aman saat diedit dan buat ID Unik
+            const safePesan = pesan.replace(/"/g, '&quot;');
+            const messageId = Date.now();
+
+            // 1. UI User (Aksi Edit & Salin disembunyikan sementara dengan class 'hidden')
             chatBox.innerHTML += `
-                <div class="flex w-full justify-end">
+                <div class="flex w-full justify-end mb-2" data-text="${safePesan}">
                     <div class="flex gap-3 max-w-[90%] sm:max-w-[80%] flex-row-reverse">
                         <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 mt-1 shadow-md"><i class="ph ph-user text-white"></i></div>
-                        <div class="bg-userbg text-white p-3 sm:p-4 rounded-2xl rounded-tr-sm shadow-md leading-relaxed break-words">${userHtml}</div>
-                    </div>
-                </div>
-            `;
-            inputField.value = ""; inputField.style.height = '';
-            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
-
-            // 2. Siapkan Payload berdasarkan Model yang dipilih
-            const selectedModel = document.getElementById('model-selector').value;
-            let finalPrompt = pesan;
-            if (attachedDocumentText) {
-                finalPrompt = `Berikut isi file '${attachedFileName}':\n\n${attachedDocumentText}\n\nTugas: ${pesan}`;
-            }
-
-            let requestBody = { model: selectedModel, prompt: finalPrompt, stream: false };
-            if (attachedImageBase64 && selectedModel === 'llama3.2-vision') {
-                requestBody.images = [attachedImageBase64];
-            }
-
-            logConsole(`Mengirim POST request ke ${selectedModel}...`);
-            resetAttachment();
-
-            // 3. Animasi Loading Modern
-            const loadingId = "loading-" + Date.now();
-            chatBox.innerHTML += `
-                <div class="flex w-full justify-start" id="wrapper-${loadingId}">
-                    <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
-                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
-                            <i class="ph ph-robot text-blue-400"></i>
-                        </div>
-                        <div class="bg-aibg text-textmain px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm" id="${loadingId}">
-                            <div class="modern-loader">
-                                <div class="orb"></div>
-                                <span class="text-sm font-semibold text-blue-300 ml-2 tracking-wide">Menganalisis...</span>
+                        <div class="flex flex-col items-end group">
+                            <div class="bg-userbg text-white p-3 sm:p-4 rounded-2xl rounded-tr-sm shadow-md leading-relaxed break-words relative">${userHtml}</div>
+                            <div id="user-actions-${messageId}" class="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity hidden">
+                                <button onclick="copyTeks(this)" class="text-slate-400 hover:text-green-400 text-xs flex items-center gap-1"><i class="ph ph-copy"></i> Salin</button>
+                                <button onclick="editTeks(this)" class="text-slate-400 hover:text-blue-400 text-xs flex items-center gap-1"><i class="ph ph-pencil"></i> Edit</button>
+                                <span class="text-[10px] text-slate-500">${timeNow}</span>
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
+
+            inputField.value = ""; inputField.style.height = ''; chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+            const selectedModel = document.getElementById('model-selector').value;
+            let finalPrompt = pesan;
+            if (attachedDocumentText) finalPrompt = `Berikut isi file '${attachedFileName}':\n\n${attachedDocumentText}\n\nTugas: ${pesan}`;
+
+            logConsole(`Mengirim POST request ke ${selectedModel}...`);
+
+            const tempBase64 = attachedImageBase64;
+            const tempMime = attachedMimeType;
+            resetAttachment();
+
+            // 2. UI Animasi Loading AI (Waktu & Tombol Salin disembunyikan sementara)
+            const loadingId = "loading-" + messageId;
+            chatBox.innerHTML += `
+                <div class="flex w-full justify-start mb-2" id="wrapper-${loadingId}">
+                    <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
+                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1"><i class="ph ph-robot text-blue-400"></i></div>
+                        <div class="flex flex-col items-start group">
+                            <div class="bg-aibg text-textmain px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm" id="${loadingId}">
+                                <div class="modern-loader"><div class="orb"></div><span class="text-sm font-semibold text-blue-300 ml-2 tracking-wide">Menganalisis...</span></div>
+                            </div>
+                            <div class="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span class="text-[10px] text-slate-500 hidden" id="time-${loadingId}">${timeNow}</span>
+                                <button onclick="copyTeks(this)" class="text-slate-400 hover:text-green-400 text-xs flex items-center gap-1 hidden" id="copy-${loadingId}"><i class="ph ph-copy"></i> Salin</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 
-            // 4. Proses API
+            // 3. Eksekusi API
             const startTime = performance.now();
             try {
-                const baseUrl = document.getElementById("api-url").value.trim();
-                const response = await fetch(`${baseUrl}/api/generate`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(requestBody),
-                });
+                let responseDataHTML = "";
 
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                if (selectedModel.startsWith('gemini')) {
+                    const apiKey = document.getElementById("api-key").value.trim();
+                    if (!apiKey) throw new Error("API Key Gemini belum diisi!");
 
-                const data = await response.json();
+                    let parts = [{ "text": finalPrompt }];
+                    if (tempBase64) {
+                        parts.push({ "inline_data": { "mime_type": tempMime || "image/jpeg", "data": tempBase64 } });
+                    }
+
+                    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+                    const res = await fetch(geminiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: parts }] })
+                    });
+
+                    if (!res.ok) throw new Error(`Gemini API Error: ${res.status}`);
+                    const data = await res.json();
+                    responseDataHTML = formatMarkdown(data.candidates[0].content.parts[0].text);
+
+                } else {
+                    const baseUrl = document.getElementById("api-url").value.trim();
+                    let requestBody = { model: selectedModel, prompt: finalPrompt, stream: false };
+                    if (tempBase64 && selectedModel === 'llama3.2-vision') requestBody.images = [tempBase64];
+
+                    const res = await fetch(`${baseUrl}/api/generate`, {
+                        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody),
+                    });
+
+                    if (!res.ok) throw new Error(`Ollama API Error: ${res.status}`);
+                    const data = await res.json();
+                    responseDataHTML = formatMarkdown(data.response);
+                }
+
                 const endTime = performance.now();
                 logConsole(`Berhasil! Waktu respon: ${((endTime - startTime) / 1000).toFixed(2)} detik.`);
 
-                document.getElementById(loadingId).innerHTML = formatMarkdown(data.response);
+                // Render Jawaban AI
+                document.getElementById(loadingId).innerHTML = responseDataHTML;
+
+                // === FITUR BARU: Buka fitur edit/salin/waktu HANYA setelah sukses ===
+                document.getElementById(`user-actions-${messageId}`).classList.remove('hidden');
+                document.getElementById(`copy-${loadingId}`).classList.remove('hidden');
+                document.getElementById(`time-${loadingId}`).classList.remove('hidden');
+
                 chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 
             } catch (error) {
                 logConsole(`Gagal: ${error.message}`, true);
-                document.getElementById(loadingId).innerHTML = `
-                    <div class="flex items-center gap-2 text-red-400">
-                        <i class="ph ph-warning-circle text-xl"></i>
-                        <span>Gagal menghubungi Ollama. Cek console di pojok kanan atas untuk detail.</span>
-                    </div>
-                `;
+                document.getElementById(loadingId).innerHTML = `<div class="flex items-center gap-2 text-red-400"><i class="ph ph-warning-circle text-xl"></i><span>Pesan Error: ${error.message}</span></div>`;
             }
         }
 
-        function handleEnter(event) {
-            if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault(); kirimPesan();
+        function handleEnter(event) { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); kirimPesan(); } }
+        function resetAttachment() { attachedImageBase64 = null; attachedDocumentText = ""; attachedFileName = ""; attachedMimeType = ""; document.getElementById("fileInput").value = ""; document.getElementById("file-preview").style.display = "none"; }
+        function clearChat() { if (confirm("Hapus semua riwayat obrolan?")) { document.getElementById("chat-box").innerHTML = `<div class="flex w-full justify-start"><div class="flex gap-3 max-w-[90%] sm:max-w-[80%]"><div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1"><i class="ph ph-robot text-blue-400"></i></div><div class="bg-aibg text-textmain p-3 sm:p-4 rounded-2xl rounded-tl-sm shadow-sm leading-relaxed">Obrolan bersih. Ada yang lain?</div></div></div>`; logConsole("Chat dibersihkan."); } }
+        /* --- FITUR EDIT & SALIN --- */
+        function copyTeks(btn) {
+            const container = btn.closest('.flex-col');
+            const dataText = btn.closest('[data-text]');
+            let textToCopy = "";
+
+            if (dataText) {
+                textToCopy = dataText.dataset.text; // Salin prompt original user
+            } else {
+                const contentDiv = container.querySelector('.bg-aibg');
+                textToCopy = contentDiv.innerText; // Salin teks balasan AI
             }
+
+            navigator.clipboard.writeText(textToCopy);
+            showToast('Teks berhasil disalin!', 'success');
         }
 
-        function resetAttachment() {
-            attachedImageBase64 = null; attachedDocumentText = ""; attachedFileName = "";
-            document.getElementById("fileInput").value = "";
-            document.getElementById("file-preview").style.display = "none";
-        }
-
-        function clearChat() {
-            if (confirm("Hapus semua riwayat obrolan?")) {
-                document.getElementById("chat-box").innerHTML = `
-                    <div class="flex w-full justify-start">
-                        <div class="flex gap-3 max-w-[90%] sm:max-w-[80%]">
-                            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1"><i class="ph ph-robot text-blue-400"></i></div>
-                            <div class="bg-aibg text-textmain p-3 sm:p-4 rounded-2xl rounded-tl-sm shadow-sm leading-relaxed">Obrolan bersih. Ada yang lain?</div>
-                        </div>
-                    </div>
-                `;
-                logConsole("Chat dibersihkan.");
+        function editTeks(btn) {
+            const dataText = btn.closest('[data-text]');
+            if (dataText) {
+                document.getElementById('userInput').value = dataText.dataset.text;
+                document.getElementById('userInput').focus();
+                showToast('Pesan siap diedit.', 'success');
             }
         }
     </script>
